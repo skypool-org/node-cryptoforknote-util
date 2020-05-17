@@ -159,6 +159,41 @@ NAN_METHOD(convert_blob) { // (parentBlockBuffer, cnBlobType)
     info.GetReturnValue().Set(returnValue);
 }
 
+NAN_METHOD(convert_blob_safex) {
+    if (info.Length() < 1)
+        THROW_ERROR_EXCEPTION("You must provide one argument.");
+
+    Local<Object> target = info[0]->ToObject();
+
+    if (!Buffer::HasInstance(target))
+        THROW_ERROR_EXCEPTION("Argument should be a buffer object.");
+
+    blobdata input = std::string(Buffer::Data(target), Buffer::Length(target));
+    blobdata output = "";
+
+    //convert
+    block b = AUTO_VAL_INIT(b);
+    if (!parse_and_validate_block_from_blob(input, b))
+        THROW_ERROR_EXCEPTION("Failed to parse block");
+
+    {
+        block parent_block;
+        if (!construct_parent_block(b, parent_block))
+            THROW_ERROR_EXCEPTION("Failed to construct parent block");
+
+        if (!get_block_hashing_blob(parent_block, output))
+            THROW_ERROR_EXCEPTION("Failed to create mining block");
+    }
+
+    // Buffer* buff = Buffer::New(output.data(), output.size());
+    // return scope.Close(buff->handle_);
+
+    v8::Local<v8::Value> returnValue = Nan::CopyBuffer((char*)output.data(), output.size()).ToLocalChecked();
+    info.GetReturnValue().Set(
+        returnValue
+    );
+}
+
 NAN_METHOD(get_block_id) {
     if (info.Length() < 1) return THROW_ERROR_EXCEPTION("You must provide one argument.");
 
@@ -369,6 +404,7 @@ NAN_MODULE_INIT(init) {
     Nan::Set(target, Nan::New("construct_block_blob").ToLocalChecked(), Nan::GetFunction(Nan::New<FunctionTemplate>(construct_block_blob)).ToLocalChecked());
     Nan::Set(target, Nan::New("get_block_id").ToLocalChecked(), Nan::GetFunction(Nan::New<FunctionTemplate>(get_block_id)).ToLocalChecked());
     Nan::Set(target, Nan::New("convert_blob").ToLocalChecked(), Nan::GetFunction(Nan::New<FunctionTemplate>(convert_blob)).ToLocalChecked());
+    Nan::Set(target, Nan::New("convert_blob_safex").ToLocalChecked(), Nan::GetFunction(Nan::New<FunctionTemplate>(convert_blob_safex)).ToLocalChecked());
     Nan::Set(target, Nan::New("address_decode").ToLocalChecked(), Nan::GetFunction(Nan::New<FunctionTemplate>(address_decode)).ToLocalChecked());
     Nan::Set(target, Nan::New("address_decode_integrated").ToLocalChecked(), Nan::GetFunction(Nan::New<FunctionTemplate>(address_decode_integrated)).ToLocalChecked());
 
